@@ -1,1 +1,1 @@
-// placeholder, expanded in US-02
+#![cfg_attr(not(feature = "std"), no_std)]

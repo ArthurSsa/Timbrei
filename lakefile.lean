@@ -1,6 +1,7 @@
 import Lake
 open Lake DSL
 
-package «lemi» where
-  name := "lemi"
-  version := "0.1.0"
+package "lemi" where
+  version := v!"0.1.0"
+
+require "leanprover-community" / "mathlib" @ git "master"

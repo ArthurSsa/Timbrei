@@ -19,9 +19,27 @@ jobs:
       - name: Lake build
         run: lake build
 
-  cargo-build:
+  cargo-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build
+      - run: cargo test
+
+  cortex-m4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+      - run: cargo build --target thumbv7em-none-eabihf --no-default-features
+
+  python-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python eval/rbj_reference.py

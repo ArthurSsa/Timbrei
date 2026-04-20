@@ -22,3 +22,10 @@ structure ValidParams where
   hq       : 0 < q
   hs       : 0 < s
   hs1      : s ≤ 1
+
+/-- Filter topology used in RBJ parametric biquad formulas. -/
+inductive FilterType
+  | Peaking   : FilterType
+  | LowShelf  : FilterType
+  | HighShelf : FilterType
+  deriving Repr, DecidableEq

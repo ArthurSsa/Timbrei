@@ -29,3 +29,11 @@ inductive FilterType
   | LowShelf  : FilterType
   | HighShelf : FilterType
   deriving Repr, DecidableEq
+
+/-- Angular centre frequency in radians per sample: ω₀ = 2π · f₀ / fₛ -/
+noncomputable def ValidParams.omega (p : ValidParams) : ℝ :=
+  2 * Real.pi * p.f0 / p.fs
+
+/-- Gain amplitude factor: A = √(10^(gain/20)) -/
+noncomputable def ValidParams.A (p : ValidParams) : ℝ :=
+  Real.sqrt (10 ^ (p.gain / 20))

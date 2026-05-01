@@ -52,6 +52,41 @@ impl ValidParams {
         }
         Ok(Self { f0, fs, q, gain, s })
     }
+
+    /// Centre frequency f0 in Hz.
+    pub fn f0(&self) -> f64 {
+        self.f0
+    }
+
+    /// Sample rate fs in Hz.
+    pub fn fs(&self) -> f64 {
+        self.fs
+    }
+
+    /// Quality factor q.
+    pub fn q(&self) -> f64 {
+        self.q
+    }
+
+    /// Shelf/peaking gain in dB. May be negative.
+    pub fn gain(&self) -> f64 {
+        self.gain
+    }
+
+    /// Shelf slope s, constrained to (0, 1].
+    pub fn s(&self) -> f64 {
+        self.s
+    }
+
+    /// Angular centre frequency in radians per sample: omega = 2*pi*f0/fs.
+    pub fn omega(&self) -> f64 {
+        2.0 * core::f64::consts::PI * self.f0 / self.fs
+    }
+
+    /// Gain amplitude factor: A = sqrt(10^(gain/20)).
+    pub fn a_factor(&self) -> f64 {
+        libm::sqrt(libm::pow(10.0, self.gain / 20.0))
+    }
 }
 
 #[cfg(test)]
@@ -127,5 +162,46 @@ mod tests {
     fn accepts_negative_gain() {
         let p = ValidParams::new(1000.0, 44100.0, 1.0, -12.0, 1.0);
         assert!(p.is_ok());
+    }
+
+    #[test]
+    fn accessors_return_constructor_values() {
+        let p = ValidParams::new(1000.0, 44100.0, 1.5, 6.0, 0.5).unwrap();
+        assert_eq!(p.f0(), 1000.0);
+        assert_eq!(p.fs(), 44100.0);
+        assert_eq!(p.q(), 1.5);
+        assert_eq!(p.gain(), 6.0);
+        assert_eq!(p.s(), 0.5);
+    }
+
+    #[test]
+    fn omega_is_correct_for_nominal() {
+        let p = ValidParams::new(1000.0, 44100.0, 1.0, 0.0, 1.0).unwrap();
+        let expected = 2.0 * core::f64::consts::PI * 1000.0 / 44100.0;
+        assert_eq!(p.omega(), expected);
+    }
+
+    #[test]
+    fn a_factor_unity_for_zero_gain() {
+        let p = ValidParams::new(1000.0, 44100.0, 1.0, 0.0, 1.0).unwrap();
+        // sqrt(10^0) = sqrt(1) = 1
+        let a = p.a_factor();
+        assert!((a - 1.0).abs() < 1e-15, "expected ~1.0, got {}", a);
+    }
+
+    #[test]
+    fn a_factor_above_unity_for_positive_gain() {
+        let p = ValidParams::new(1000.0, 44100.0, 1.0, 6.0, 1.0).unwrap();
+        let a = p.a_factor();
+        // sqrt(10^0.3) ~ sqrt(1.9953) ~ 1.4125
+        assert!(a > 1.0, "positive gain should give A > 1, got {}", a);
+        assert!((a - 1.4125375446227544).abs() < 1e-12, "got {}", a);
+    }
+
+    #[test]
+    fn a_factor_below_unity_for_negative_gain() {
+        let p = ValidParams::new(1000.0, 44100.0, 1.0, -6.0, 1.0).unwrap();
+        let a = p.a_factor();
+        assert!(a < 1.0, "negative gain should give A < 1, got {}", a);
     }
 }

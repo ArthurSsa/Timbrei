@@ -92,10 +92,57 @@ def high_shelf(f0: float, fs: float, s: float, gain: float) -> dict[str, float]:
     return {"b0": b0, "b1": b1, "b2": b2, "a1": a1, "a2": a2}
 
 
+def generate_fixtures(out_path: str = "fixtures/rbj_coefficients.json") -> int:
+    """Generates a deterministic set of fixture records and writes them as JSON.
+
+    Records cover nominal + edge cases for each filter type at fs=44100.
+    Each record carries the inputs, the filter type, and the five
+    coefficients computed by the Python reference. Rust ULP conformance
+    tests (US-35) load this file via include_str! and verify agreement
+    to <= 4 ULP.
+
+    Returns the number of records written.
+    """
+    import json
+    import os
+
+    records: list[dict] = []
+
+    # Peaking: nominal and edge gains
+    for gain in (-12.0, -6.0, 0.0, 6.0, 12.0):
+        c = peaking(1000.0, 44100.0, 1.0, gain)
+        records.append({
+            "type": "peaking",
+            "f0": 1000.0, "fs": 44100.0, "q": 1.0, "gain": gain, "s": 1.0,
+            **c,
+        })
+
+    # Low Shelf: nominal gain sweep
+    for gain in (-6.0, 0.0, 6.0):
+        c = low_shelf(1000.0, 44100.0, 1.0, gain)
+        records.append({
+            "type": "low_shelf",
+            "f0": 1000.0, "fs": 44100.0, "q": 1.0, "gain": gain, "s": 1.0,
+            **c,
+        })
+
+    # High Shelf: nominal gain sweep
+    for gain in (-6.0, 0.0, 6.0):
+        c = high_shelf(1000.0, 44100.0, 1.0, gain)
+        records.append({
+            "type": "high_shelf",
+            "f0": 1000.0, "fs": 44100.0, "q": 1.0, "gain": gain, "s": 1.0,
+            **c,
+        })
+
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(records, f, indent=2)
+        f.write("\n")
+
+    return len(records)
+
+
 if __name__ == "__main__":
-    nominal_p = peaking(1000.0, 44100.0, 1.0, 6.0)
-    nominal_ls = low_shelf(1000.0, 44100.0, 1.0, 6.0)
-    nominal_hs = high_shelf(1000.0, 44100.0, 1.0, 6.0)
-    print(f"peaking    = {nominal_p}")
-    print(f"low_shelf  = {nominal_ls}")
-    print(f"high_shelf = {nominal_hs}")
+    n = generate_fixtures()
+    print(f"wrote {n} fixture records to fixtures/rbj_coefficients.json")

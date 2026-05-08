@@ -28,3 +28,35 @@ pub fn ulp_distance(a: f64, b: f64) -> u64 {
     let to_lex = |x: i64| if x >= 0 { x } else { i64::MIN - x };
     (to_lex(ai) - to_lex(bi)).unsigned_abs()
 }
+
+/// Asserts that two `BiquadCoeffs`-shaped values agree on all five
+/// coefficients within `tol` ULPs.
+///
+/// Takes the five coefficients of each side as `f64` tuples so the helper
+/// is decoupled from the concrete `BiquadCoeffs` type. Integration tests
+/// pass `(c.b0, c.b1, c.b2, c.a1, c.a2)` for each side. This avoids sharing
+/// a `#[macro_export]` macro between the `src/` crate and the `tests/`
+/// integration test set.
+///
+/// On failure, the panic message includes the label, the offending
+/// coefficient name, both values, and the actual ULP distance.
+pub fn assert_coeffs_within_ulp(
+    label: &str,
+    got: (f64, f64, f64, f64, f64),
+    expected: (f64, f64, f64, f64, f64),
+    tol: u64,
+) {
+    let names = ["b0", "b1", "b2", "a1", "a2"];
+    let got_arr = [got.0, got.1, got.2, got.3, got.4];
+    let expected_arr = [expected.0, expected.1, expected.2, expected.3, expected.4];
+    for (i, name) in names.iter().enumerate() {
+        let g = got_arr[i];
+        let e = expected_arr[i];
+        let dist = ulp_distance(g, e);
+        assert!(
+            dist <= tol,
+            "[{}] {} exceeded {} ULP: got = {:.17e}, expected = {:.17e}, distance = {} ULP",
+            label, name, tol, g, e, dist
+        );
+    }
+}

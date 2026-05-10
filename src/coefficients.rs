@@ -64,6 +64,30 @@ impl BiquadCoeffs {
 
         Self { b0, b1, b2, a1, a2 }
     }
+
+    /// High Shelf coefficients per RBJ Cookbook §3.7.
+    ///
+    /// Uses shelf slope `s` instead of quality factor Q for the
+    /// bandwidth parameter.
+    pub fn high_shelf(params: &ValidParams) -> Self {
+        let omega = params.omega();
+        let sin_omega = libm::sin(omega);
+        let cos_omega = libm::cos(omega);
+        let a = params.a_factor();
+        let alpha = (sin_omega / 2.0)
+            * libm::sqrt((a + 1.0 / a) * (1.0 / params.s() - 1.0) + 2.0);
+        let sqrt_a = libm::sqrt(a);
+        let two_sqrt_a_alpha = 2.0 * sqrt_a * alpha;
+
+        let a0 = (a + 1.0) - (a - 1.0) * cos_omega + two_sqrt_a_alpha;
+        let b0 = (a * ((a + 1.0) + (a - 1.0) * cos_omega + two_sqrt_a_alpha)) / a0;
+        let b1 = (-2.0 * a * ((a - 1.0) + (a + 1.0) * cos_omega)) / a0;
+        let b2 = (a * ((a + 1.0) + (a - 1.0) * cos_omega - two_sqrt_a_alpha)) / a0;
+        let a1 = (2.0 * ((a - 1.0) - (a + 1.0) * cos_omega)) / a0;
+        let a2 = ((a + 1.0) - (a - 1.0) * cos_omega - two_sqrt_a_alpha) / a0;
+
+        Self { b0, b1, b2, a1, a2 }
+    }
 }
 
 #[cfg(test)]
@@ -124,5 +148,27 @@ mod tests {
         assert!((c.b0 - 1.0).abs() < 1e-12, "b0 expected ~1.0, got {}", c.b0);
         assert!((c.b1 - c.a1).abs() < 1e-12, "b1 must equal a1");
         assert!((c.b2 - c.a2).abs() < 1e-12, "b2 must equal a2");
+    }
+
+    #[test]
+    fn high_shelf_is_finite() {
+        let c = BiquadCoeffs::high_shelf(&nominal_params());
+        assert!(c.b0.is_finite());
+        assert!(c.b1.is_finite());
+        assert!(c.b2.is_finite());
+        assert!(c.a1.is_finite());
+        assert!(c.a2.is_finite());
+    }
+
+    #[test]
+    fn high_shelf_unity_gain_is_identity() {
+        // At gain=0 dB, A=1, the shelf numerator and denominator polynomials
+        // become identical (b_k == a_k for k=0,1,2 with a0=1), giving H(z)=1.
+        // Individual coefficients are NOT zero; they cancel in the transfer function.
+        let p = ValidParams::new(1000.0, 44100.0, 1.0, 0.0, 1.0).unwrap();
+        let c = BiquadCoeffs::high_shelf(&p);
+        assert!((c.b0 - 1.0).abs() < 1e-12, "b0 expected ~1.0, got {}", c.b0);
+        assert!((c.b1 - c.a1).abs() < 1e-12, "b1 must equal a1, got b1={} a1={}", c.b1, c.a1);
+        assert!((c.b2 - c.a2).abs() < 1e-12, "b2 must equal a2, got b2={} a2={}", c.b2, c.a2);
     }
 }

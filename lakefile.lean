@@ -8,4 +8,4 @@ require "leanprover-community" / "mathlib" @ git "master"
 
 lean_lib «Lemi» where
   srcDir := "lean"
-  roots := #[`FilterParams, `BilinearTransform]
+  roots := #[`FilterParams, `BilinearTransform, `SchurCohn]

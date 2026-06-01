@@ -93,47 +93,58 @@ def high_shelf(f0: float, fs: float, s: float, gain: float) -> dict[str, float]:
 
 
 def generate_fixtures(out_path: str = "fixtures/rbj_coefficients.json") -> int:
-    """Generates a deterministic set of fixture records and writes them as JSON.
+    """Generates the full ULP conformance matrix and writes it as JSON.
 
-    Records cover nominal + edge cases for each filter type at fs=44100.
-    Each record carries the inputs, the filter type, and the five
-    coefficients computed by the Python reference. Rust ULP conformance
-    tests (US-35) load this file via include_str! and verify agreement
-    to <= 4 ULP.
+    The matrix sweeps every filter type across two sample rates
+    (44100 and 48000 Hz), four centre frequencies, the bandwidth
+    parameter (Q for peaking, slope S for the shelves), and a five-point
+    gain ladder spanning cut and boost. Each record carries the inputs,
+    the filter type, and the five coefficients computed by the Python
+    reference. The Rust ULP conformance suite (US-36) loads this file via
+    `include_str!` and verifies agreement to <= 4 ULP for every record.
+
+    Field convention: `q` is meaningful for peaking records and `s` for
+    shelf records; the unused parameter is fixed to a valid placeholder
+    (1.0) so each record still constructs a valid `ValidParams` on the
+    Rust side.
 
     Returns the number of records written.
     """
     import json
     import os
 
+    sample_rates = (44100.0, 48000.0)
+    freqs = (100.0, 1000.0, 5000.0, 10000.0)
+    gains = (-12.0, -6.0, 0.0, 6.0, 12.0)
+    q_values = (0.5, 1.0, 2.0, 4.0)
+    s_values = (0.5, 1.0)
+
     records: list[dict] = []
 
-    # Peaking: nominal and edge gains
-    for gain in (-12.0, -6.0, 0.0, 6.0, 12.0):
-        c = peaking(1000.0, 44100.0, 1.0, gain)
-        records.append({
-            "type": "peaking",
-            "f0": 1000.0, "fs": 44100.0, "q": 1.0, "gain": gain, "s": 1.0,
-            **c,
-        })
+    # Peaking: sweep Q (slope S held at the placeholder 1.0).
+    for fs in sample_rates:
+        for f0 in freqs:
+            for q in q_values:
+                for gain in gains:
+                    c = peaking(f0, fs, q, gain)
+                    records.append({
+                        "type": "peaking",
+                        "f0": f0, "fs": fs, "q": q, "gain": gain, "s": 1.0,
+                        **c,
+                    })
 
-    # Low Shelf: nominal gain sweep
-    for gain in (-6.0, 0.0, 6.0):
-        c = low_shelf(1000.0, 44100.0, 1.0, gain)
-        records.append({
-            "type": "low_shelf",
-            "f0": 1000.0, "fs": 44100.0, "q": 1.0, "gain": gain, "s": 1.0,
-            **c,
-        })
-
-    # High Shelf: nominal gain sweep
-    for gain in (-6.0, 0.0, 6.0):
-        c = high_shelf(1000.0, 44100.0, 1.0, gain)
-        records.append({
-            "type": "high_shelf",
-            "f0": 1000.0, "fs": 44100.0, "q": 1.0, "gain": gain, "s": 1.0,
-            **c,
-        })
+    # Low / High Shelf: sweep slope S (Q held at the placeholder 1.0).
+    for kind, fn in (("low_shelf", low_shelf), ("high_shelf", high_shelf)):
+        for fs in sample_rates:
+            for f0 in freqs:
+                for s in s_values:
+                    for gain in gains:
+                        c = fn(f0, fs, s, gain)
+                        records.append({
+                            "type": kind,
+                            "f0": f0, "fs": fs, "q": 1.0, "gain": gain, "s": s,
+                            **c,
+                        })
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:

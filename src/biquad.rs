@@ -2,10 +2,10 @@
 //!
 //! `Biquad` owns its [`BiquadCoeffs`] and the two delay-line samples
 //! (`w1`, `w2`) used by Direct Form II Transposed. Construction via
-//! [`Biquad::from_params`] yields a filter with zero initial state.
-//!
-//! `process`, `reset`, and `coeffs` accessors are added in Sprint 5
-//! (US-26, US-27, US-28).
+//! [`Biquad::from_params`] yields a filter with zero initial state;
+//! [`Biquad::process`] runs the difference equation, [`Biquad::reset`]
+//! zeroes the delay line in place, and [`Biquad::coeffs`] exposes the
+//! coefficients for test inspection.
 
 use crate::coefficients::BiquadCoeffs;
 use crate::params::ValidParams;
@@ -23,7 +23,6 @@ pub enum FilterType {
 /// Holds five coefficients and two delay-line samples of fixed size, with
 /// no heap allocation. Usable in `no_std` builds.
 #[derive(Debug, Clone, Copy)]
-#[allow(dead_code)] // fields consumed by process/reset/coeffs in Sprint 5 (US-26/27/28)
 pub struct Biquad {
     coeffs: BiquadCoeffs,
     w1: f64,
@@ -40,6 +39,25 @@ impl Biquad {
             FilterType::HighShelf => BiquadCoeffs::high_shelf(params),
         };
         Self { coeffs, w1: 0.0, w2: 0.0 }
+    }
+
+    /// Processes one input sample `x`, returning the filtered output `y`.
+    ///
+    /// Implements the Direct Form II Transposed recurrence, which uses two
+    /// state words:
+    ///
+    /// ```text
+    /// y   = b0·x + w1
+    /// w1' = b1·x − a1·y + w2
+    /// w2' = b2·x − a2·y
+    /// ```
+    ///
+    /// The two `f64` state words are updated in place, with no heap allocation.
+    pub fn process(&mut self, x: f64) -> f64 {
+        let y = self.coeffs.b0 * x + self.w1;
+        self.w1 = self.coeffs.b1 * x - self.coeffs.a1 * y + self.w2;
+        self.w2 = self.coeffs.b2 * x - self.coeffs.a2 * y;
+        y
     }
 }
 
@@ -79,5 +97,34 @@ mod tests {
         let b_ls = Biquad::from_params(&p, FilterType::LowShelf);
         // Different filter types must produce different coefficient sets.
         assert_ne!(b_peak.coeffs.b0, b_ls.coeffs.b0);
+    }
+
+    #[test]
+    fn process_first_output_is_b0_for_unit_impulse() {
+        // With zero initial state, the first output of an impulse is exactly
+        // y0 = b0·1 + w1 = b0.
+        let mut b = Biquad::from_params(&nominal_params(), FilterType::Peaking);
+        let y0 = b.process(1.0);
+        assert_eq!(y0, b.coeffs.b0);
+    }
+
+    #[test]
+    fn process_impulse_response_decays_to_zero() {
+        // A stable biquad (poles strictly inside the unit circle) has an
+        // impulse response that decays to zero. Feed a unit impulse followed
+        // by zeros and check the tail is negligible.
+        let mut b = Biquad::from_params(&nominal_params(), FilterType::Peaking);
+        let mut y = b.process(1.0);
+        for _ in 0..2000 {
+            y = b.process(0.0);
+        }
+        assert!(y.abs() < 1e-9, "impulse response failed to decay: {}", y);
+    }
+
+    #[test]
+    fn process_zero_input_from_zero_state_is_zero() {
+        let mut b = Biquad::from_params(&nominal_params(), FilterType::LowShelf);
+        assert_eq!(b.process(0.0), 0.0);
+        assert_eq!(b.process(0.0), 0.0);
     }
 }

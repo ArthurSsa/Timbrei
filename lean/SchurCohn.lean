@@ -108,6 +108,21 @@ two auxiliary lemmas. -/
 theorem schur_cohn_degree2 (a1 a2 : ℝ) (h2 : |a2| < 1) (h1 : |a1| < 1 + a2)
     (z : ℂ) (hz : z ^ 2 + (a1 : ℂ) * z + (a2 : ℂ) = 0) :
     ‖z‖ < 1 := by
-  sorry
+  by_cases him : z.im = 0
+  · -- Real root: descend to ℝ via `z = z.re`.
+    have hzre : z = (z.re : ℂ) := by
+      apply Complex.ext
+      · simp
+      · simp [him]
+    have hcz : ((z.re : ℂ)) ^ 2 + (a1 : ℂ) * (z.re : ℂ) + (a2 : ℂ) = 0 := by
+      rw [← hzre]; exact hz
+    have hxr : z.re ^ 2 + a1 * z.re + a2 = 0 := by
+      have hcast : (((z.re ^ 2 + a1 * z.re + a2 : ℝ)) : ℂ) = 0 := by
+        push_cast; linear_combination hcz
+      exact_mod_cast hcast
+    have hreal := schur_cohn_real_case a1 a2 h2 h1 z.re hxr
+    rw [hzre, Complex.norm_real, Real.norm_eq_abs]
+    exact hreal
+  · exact schur_cohn_complex_case a1 a2 h2 z hz him
 
 end SchurCohn

@@ -59,6 +59,16 @@ impl Biquad {
         self.w2 = self.coeffs.b2 * x - self.coeffs.a2 * y;
         y
     }
+
+    /// Clears the delay line, returning the filter to its post-construction
+    /// state without touching the coefficients and without reallocating.
+    ///
+    /// After `reset`, the filter behaves identically to a fresh
+    /// [`Biquad::from_params`] built with the same coefficients.
+    pub fn reset(&mut self) {
+        self.w1 = 0.0;
+        self.w2 = 0.0;
+    }
 }
 
 #[cfg(test)]
@@ -126,5 +136,34 @@ mod tests {
         let mut b = Biquad::from_params(&nominal_params(), FilterType::LowShelf);
         assert_eq!(b.process(0.0), 0.0);
         assert_eq!(b.process(0.0), 0.0);
+    }
+
+    #[test]
+    fn reset_zeroes_delay_state() {
+        let mut b = Biquad::from_params(&nominal_params(), FilterType::Peaking);
+        // Drive the filter so the delay line is non-zero.
+        let _ = b.process(1.0);
+        let _ = b.process(0.5);
+        assert!(b.w1 != 0.0 || b.w2 != 0.0);
+        b.reset();
+        assert_eq!(b.w1, 0.0);
+        assert_eq!(b.w2, 0.0);
+    }
+
+    #[test]
+    fn reset_restores_fresh_instance_behavior() {
+        let p = nominal_params();
+        let mut driven = Biquad::from_params(&p, FilterType::HighShelf);
+        for &x in &[1.0, -0.3, 0.7, 0.2] {
+            let _ = driven.process(x);
+        }
+        driven.reset();
+
+        // Post-reset state must equal a freshly constructed filter, so the
+        // two produce bit-identical output for the same input stream.
+        let mut fresh = Biquad::from_params(&p, FilterType::HighShelf);
+        for &x in &[0.9, -0.1, 0.4] {
+            assert_eq!(driven.process(x), fresh.process(x));
+        }
     }
 }

@@ -69,6 +69,17 @@ impl Biquad {
         self.w1 = 0.0;
         self.w2 = 0.0;
     }
+
+    /// Returns the filter's coefficients.
+    ///
+    /// `#[doc(hidden)]`: this accessor exists so integration tests under
+    /// `tests/` can inspect the coefficients of a constructed filter. It is
+    /// not re-exported at the crate root and is not part of the stable
+    /// public API. It is intended for test use only.
+    #[doc(hidden)]
+    pub fn coeffs(&self) -> BiquadCoeffs {
+        self.coeffs
+    }
 }
 
 #[cfg(test)]
@@ -165,5 +176,12 @@ mod tests {
         for &x in &[0.9, -0.1, 0.4] {
             assert_eq!(driven.process(x), fresh.process(x));
         }
+    }
+
+    #[test]
+    fn coeffs_returns_constructor_coefficients() {
+        let p = nominal_params();
+        let b = Biquad::from_params(&p, FilterType::Peaking);
+        assert_eq!(b.coeffs(), BiquadCoeffs::peaking(&p));
     }
 }

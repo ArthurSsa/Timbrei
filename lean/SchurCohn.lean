@@ -38,7 +38,36 @@ The conjugate `conj z` is also a root, and it is distinct from `z` because
 theorem schur_cohn_complex_case (a1 a2 : ℝ) (h2 : |a2| < 1)
     (z : ℂ) (hz : z ^ 2 + (a1 : ℂ) * z + (a2 : ℂ) = 0) (himg : z.im ≠ 0) :
     ‖z‖ < 1 := by
-  sorry
+  -- The complex conjugate is also a root, as the coefficients are real.
+  have hconj : (starRingEnd ℂ z) ^ 2 + (a1 : ℂ) * (starRingEnd ℂ z) + (a2 : ℂ) = 0 := by
+    have h := congrArg (starRingEnd ℂ) hz
+    simpa [map_add, map_mul, map_pow, Complex.conj_ofReal] using h
+  -- A non-real number differs from its conjugate.
+  have hzw : z ≠ starRingEnd ℂ z := by
+    intro h
+    apply himg
+    have him : z.im = -z.im := by
+      calc z.im = (starRingEnd ℂ z).im := by rw [← h]
+        _ = -z.im := Complex.conj_im z
+    linarith
+  have hzwne : z - starRingEnd ℂ z ≠ 0 := sub_ne_zero.mpr hzw
+  -- Subtracting the two root equations factors through `z - conj z`.
+  have hfac : (z - starRingEnd ℂ z) * (z + starRingEnd ℂ z + (a1 : ℂ)) = 0 := by
+    linear_combination hz - hconj
+  have hsum : z + starRingEnd ℂ z + (a1 : ℂ) = 0 :=
+    (mul_eq_zero.mp hfac).resolve_left hzwne
+  -- Vieta: the product of the roots is the constant term `a₂`.
+  have hprod : z * starRingEnd ℂ z = (a2 : ℂ) := by
+    linear_combination z * hsum - hz
+  -- `z · conj z = ‖z‖²`, so `‖z‖² = a₂`.
+  have hnsr : Complex.normSq z = a2 := by
+    have hcast : (Complex.normSq z : ℂ) = (a2 : ℂ) := by
+      rw [← Complex.mul_conj z]; exact hprod
+    exact_mod_cast hcast
+  have ha2lt : a2 < 1 := (abs_lt.mp h2).2
+  have hsqlt : ‖z‖ ^ 2 < 1 := by
+    rw [← Complex.normSq_eq_norm_sq, hnsr]; exact ha2lt
+  nlinarith [norm_nonneg z, hsqlt]
 
 /-- **Real case.** A real root `x` of `x² + a₁·x + a₂` satisfies `|x| < 1`
 whenever `|a₂| < 1` and `|a₁| < 1 + a₂`.

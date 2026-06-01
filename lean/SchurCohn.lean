@@ -79,7 +79,27 @@ Writing `s = -a₁ - x` for the companion root (so `x + s = -a₁` and
 theorem schur_cohn_real_case (a1 a2 : ℝ) (h2 : |a2| < 1) (h1 : |a1| < 1 + a2)
     (x : ℝ) (hx : x ^ 2 + a1 * x + a2 = 0) :
     |x| < 1 := by
-  sorry
+  have hbound := abs_lt.mp h1
+  have hp1 : 0 < 1 + a1 + a2 := by linarith [hbound.1]
+  have hpm1 : 0 < 1 - a1 + a2 := by linarith [hbound.2]
+  -- p(1) and p(-1) in factored form (the second factor uses the companion root).
+  have hfac1 : 0 < (1 - x) * (1 + a1 + x) := by
+    have e : (1 - x) * (1 + a1 + x) = 1 + a1 + a2 := by linear_combination -hx
+    rw [e]; exact hp1
+  have hfac2 : 0 < (1 + x) * (1 - a1 - x) := by
+    have e : (1 + x) * (1 - a1 - x) = 1 - a1 + a2 := by linear_combination -hx
+    rw [e]; exact hpm1
+  -- `(x·s)² = a₂² < 1`, where `x·(x+a₁) = -a₂`.
+  have ha2 := abs_lt.mp h2
+  have hxprod : x * (x + a1) = -a2 := by linear_combination hx
+  have hsq : x ^ 2 * (x + a1) ^ 2 < 1 := by
+    have : (x * (x + a1)) ^ 2 = a2 ^ 2 := by rw [hxprod]; ring
+    nlinarith [ha2.1, ha2.2, this]
+  -- Conclude `x² < 1`, then `|x| < 1`.
+  have hx2 : x ^ 2 < 1 := by
+    nlinarith [mul_pos hfac1 hfac2, hsq, sq_nonneg x, sq_nonneg (x + a1)]
+  rw [abs_lt]
+  constructor <;> nlinarith [hx2]
 
 /-- **Schur-Cohn for degree two.** Every root of the monic real quadratic
 `z² + a₁·z + a₂` lies strictly inside the unit disk, given `|a₂| < 1` and

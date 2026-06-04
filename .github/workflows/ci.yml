@@ -18,6 +18,11 @@ jobs:
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
       - name: Lake build
         run: lake build
+      - name: Assert no sorry in Lean sources (RNF-C1)
+        run: |
+          if grep -rn --include='*.lean' '\bsorry\b' lean/; then
+            echo "::error::found 'sorry' in Lean sources"; exit 1
+          fi
 
   cargo-test:
     runs-on: ubuntu-latest

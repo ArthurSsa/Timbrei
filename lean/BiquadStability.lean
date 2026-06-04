@@ -167,4 +167,55 @@ theorem peaking_stability (p : ValidParams) (z : ℂ)
     ‖z‖ < 1 := by
   obtain ⟨h2, h1⟩ := peaking_schur p
   exact SchurCohn.schur_cohn_degree2 (a1_peak p) (a2_peak p) h2 h1 z hz
+
+/-! ### Shelf positivity facts -/
+
+/-- The shelf radicand `(A + 1/A)(1/S − 1) + 2` is strictly positive. -/
+theorem shelf_radicand_pos (p : ValidParams) :
+    0 < (p.A + 1 / p.A) * (1 / p.s - 1) + 2 := by
+  have hA := A_pos p
+  have hAinv : 0 < p.A + 1 / p.A := add_pos hA (one_div_pos.mpr hA)
+  have hsinv : 1 ≤ 1 / p.s := by rw [le_div_iff₀ p.hs]; nlinarith [p.hs1]
+  nlinarith [mul_nonneg hAinv.le (by linarith : (0 : ℝ) ≤ 1 / p.s - 1)]
+
+/-- `0 < α` for the shelves. -/
+theorem alphaShelf_pos (p : ValidParams) : 0 < alphaShelf p := by
+  unfold alphaShelf
+  exact mul_pos (by linarith [sin_omega_pos p]) (Real.sqrt_pos.mpr (shelf_radicand_pos p))
+
+/-- `0 < 2 √A · α`. -/
+theorem twoSqrtAAlpha_pos (p : ValidParams) : 0 < twoSqrtAAlpha p := by
+  unfold twoSqrtAAlpha
+  exact mul_pos (mul_pos two_pos (Real.sqrt_pos.mpr (A_pos p))) (alphaShelf_pos p)
+
+/-! ### Low-shelf stability -/
+
+/-- The low-shelf RBJ coefficients satisfy the Schur-Cohn conditions. -/
+theorem low_shelf_schur (p : ValidParams) :
+    |a2_lowshelf p| < 1 ∧ |a1_lowshelf p| < 1 + a2_lowshelf p := by
+  have hA := A_pos p
+  have hclt := cos_omega_lt_one p
+  have hcgt := neg_one_lt_cos_omega p
+  have hβ := twoSqrtAAlpha_pos p
+  -- the recurring positive bracket (A+1) + (A-1) cos ω₀
+  have hbr : 0 < (p.A + 1) + (p.A - 1) * Real.cos p.omega := by
+    nlinarith [mul_pos hA (by linarith : (0 : ℝ) < 1 + Real.cos p.omega),
+      (by linarith : (0 : ℝ) < 1 - Real.cos p.omega)]
+  have ha0 : 0 < a0_lowshelf p := by unfold a0_lowshelf; linarith [hbr, hβ]
+  have key := schur_cond ha0
+    (n2 := (p.A + 1) + (p.A - 1) * Real.cos p.omega - twoSqrtAAlpha p)
+    (n1 := -2 * ((p.A - 1) + (p.A + 1) * Real.cos p.omega))
+    (by unfold a0_lowshelf; linarith [hbr])
+    (by unfold a0_lowshelf; linarith [hβ])
+    (by unfold a0_lowshelf; nlinarith [mul_pos hA (by linarith : (0 : ℝ) < 1 - Real.cos p.omega)])
+    (by unfold a0_lowshelf; nlinarith [mul_pos hA (by linarith : (0 : ℝ) < 1 + Real.cos p.omega)])
+  simpa only [a1_lowshelf, a2_lowshelf] using key
+
+/-- **Low-shelf stability.** Every pole of the low-shelf biquad lies strictly
+inside the unit disk. -/
+theorem low_shelf_stability (p : ValidParams) (z : ℂ)
+    (hz : z ^ 2 + (a1_lowshelf p : ℂ) * z + (a2_lowshelf p : ℂ) = 0) :
+    ‖z‖ < 1 := by
+  obtain ⟨h2, h1⟩ := low_shelf_schur p
+  exact SchurCohn.schur_cohn_degree2 (a1_lowshelf p) (a2_lowshelf p) h2 h1 z hz
 end BiquadStability

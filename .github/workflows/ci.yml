@@ -28,6 +28,9 @@ jobs:
 
   cortex-m4:
     runs-on: ubuntu-latest
+    # Embedded target must build with zero errors AND zero warnings (US-39).
+    env:
+      RUSTFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

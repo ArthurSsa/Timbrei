@@ -218,4 +218,36 @@ theorem low_shelf_stability (p : ValidParams) (z : ℂ)
     ‖z‖ < 1 := by
   obtain ⟨h2, h1⟩ := low_shelf_schur p
   exact SchurCohn.schur_cohn_degree2 (a1_lowshelf p) (a2_lowshelf p) h2 h1 z hz
+
+/-! ### High-shelf stability -/
+
+/-- The high-shelf RBJ coefficients satisfy the Schur-Cohn conditions. -/
+theorem high_shelf_schur (p : ValidParams) :
+    |a2_highshelf p| < 1 ∧ |a1_highshelf p| < 1 + a2_highshelf p := by
+  have hA := A_pos p
+  have hclt := cos_omega_lt_one p
+  have hcgt := neg_one_lt_cos_omega p
+  have hβ := twoSqrtAAlpha_pos p
+  -- the recurring positive bracket (A+1) - (A-1) cos ω₀
+  have hbr : 0 < (p.A + 1) - (p.A - 1) * Real.cos p.omega := by
+    nlinarith [mul_pos hA (by linarith : (0 : ℝ) < 1 - Real.cos p.omega),
+      (by linarith : (0 : ℝ) < 1 + Real.cos p.omega)]
+  have ha0 : 0 < a0_highshelf p := by unfold a0_highshelf; linarith [hbr, hβ]
+  have key := schur_cond ha0
+    (n2 := (p.A + 1) - (p.A - 1) * Real.cos p.omega - twoSqrtAAlpha p)
+    (n1 := 2 * ((p.A - 1) - (p.A + 1) * Real.cos p.omega))
+    (by unfold a0_highshelf; linarith [hbr])
+    (by unfold a0_highshelf; linarith [hβ])
+    (by unfold a0_highshelf; nlinarith [mul_pos hA (by linarith : (0 : ℝ) < 1 - Real.cos p.omega)])
+    (by unfold a0_highshelf; nlinarith [mul_pos hA (by linarith : (0 : ℝ) < 1 + Real.cos p.omega)])
+  simpa only [a1_highshelf, a2_highshelf] using key
+
+/-- **High-shelf stability.** Every pole of the high-shelf biquad lies
+strictly inside the unit disk. -/
+theorem high_shelf_stability (p : ValidParams) (z : ℂ)
+    (hz : z ^ 2 + (a1_highshelf p : ℂ) * z + (a2_highshelf p : ℂ) = 0) :
+    ‖z‖ < 1 := by
+  obtain ⟨h2, h1⟩ := high_shelf_schur p
+  exact SchurCohn.schur_cohn_degree2 (a1_highshelf p) (a2_highshelf p) h2 h1 z hz
+
 end BiquadStability

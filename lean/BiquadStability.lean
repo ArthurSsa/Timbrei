@@ -1,5 +1,6 @@
 import Mathlib
 import FilterParams
+import SchurCohn
 
 /-!
 # RBJ denominator coefficients over ℝ
@@ -84,4 +85,86 @@ noncomputable def a1_highshelf (p : ValidParams) : ℝ :=
 noncomputable def a2_highshelf (p : ValidParams) : ℝ :=
   ((p.A + 1) - (p.A - 1) * Real.cos p.omega - twoSqrtAAlpha p) / a0_highshelf p
 
+/-! ## Pole containment (stability)
+
+The three theorems below show that each filter's poles lie strictly inside
+the unit disk, by verifying the two Schur-Cohn inequalities `|a₂| < 1` and
+`|a₁| < 1 + a₂` for the RBJ coefficients and feeding them to
+`SchurCohn.schur_cohn_degree2`.
+
+All three reduce to the same elementary facts about a `ValidParams`:
+`0 < ω₀ < π` (so `sin ω₀ > 0` and `cos² ω₀ < 1`), `A > 0`, and, for the
+shelves, that the `2 √A · α` term is strictly positive. -/
+
+/-- The Schur-Cohn conditions for a normalized pair `a₁ = n₁/a₀`,
+`a₂ = n₂/a₀` follow from the sign bounds on the *unnormalized* numerators:
+`|n₂| < a₀` and `|n₁| < a₀ + n₂`. -/
+theorem schur_cond {a0 n1 n2 : ℝ} (ha0 : 0 < a0)
+    (h2gt : -a0 < n2) (h2lt : n2 < a0)
+    (h1gt : -(a0 + n2) < n1) (h1lt : n1 < a0 + n2) :
+    |n2 / a0| < 1 ∧ |n1 / a0| < 1 + n2 / a0 := by
+  refine ⟨?_, ?_⟩
+  · rw [abs_div, abs_of_pos ha0, div_lt_one ha0]
+    exact abs_lt.mpr ⟨h2gt, h2lt⟩
+  · have hrw : (1 : ℝ) + n2 / a0 = (a0 + n2) / a0 := by field_simp
+    rw [hrw, abs_div, abs_of_pos ha0]
+    gcongr
+    exact abs_lt.mpr ⟨h1gt, h1lt⟩
+
+/-! ### Elementary `ValidParams` facts -/
+
+/-- `0 < ω₀`. -/
+theorem omega_pos (p : ValidParams) : 0 < p.omega := by
+  unfold ValidParams.omega
+  exact div_pos (mul_pos (mul_pos two_pos Real.pi_pos) p.hf0) p.hfs
+
+/-- `ω₀ < π`, equivalent to the Nyquist constraint `f₀ < fₛ/2`. -/
+theorem omega_lt_pi (p : ValidParams) : p.omega < Real.pi := by
+  unfold ValidParams.omega
+  rw [div_lt_iff₀ p.hfs]
+  nlinarith [mul_pos Real.pi_pos (show (0 : ℝ) < p.fs / 2 - p.f0 by linarith [p.hNyquist])]
+
+/-- `0 < sin ω₀`. -/
+theorem sin_omega_pos (p : ValidParams) : 0 < Real.sin p.omega :=
+  Real.sin_pos_of_pos_of_lt_pi (omega_pos p) (omega_lt_pi p)
+
+/-- `cos ω₀ < 1`. -/
+theorem cos_omega_lt_one (p : ValidParams) : Real.cos p.omega < 1 := by
+  nlinarith [Real.sin_sq_add_cos_sq p.omega, pow_pos (sin_omega_pos p) 2]
+
+/-- `-1 < cos ω₀`. -/
+theorem neg_one_lt_cos_omega (p : ValidParams) : -1 < Real.cos p.omega := by
+  nlinarith [Real.sin_sq_add_cos_sq p.omega, pow_pos (sin_omega_pos p) 2]
+
+/-- `0 < A`. -/
+theorem A_pos (p : ValidParams) : 0 < p.A := by
+  unfold ValidParams.A
+  exact Real.sqrt_pos.mpr (Real.rpow_pos_of_pos (by norm_num) _)
+
+/-! ### Peaking stability -/
+
+/-- The peaking RBJ coefficients satisfy the Schur-Cohn conditions. -/
+theorem peaking_schur (p : ValidParams) :
+    |a2_peak p| < 1 ∧ |a1_peak p| < 1 + a2_peak p := by
+  have halpha : 0 < alphaPeak p := by
+    unfold alphaPeak; exact div_pos (sin_omega_pos p) (by linarith [p.hq])
+  have hu : 0 < alphaPeak p / p.A := div_pos halpha (A_pos p)
+  have ha0 : 0 < a0_peak p := by unfold a0_peak; linarith [hu]
+  have hclt := cos_omega_lt_one p
+  have hcgt := neg_one_lt_cos_omega p
+  have key := schur_cond ha0
+    (n2 := 1 - alphaPeak p / p.A) (n1 := -2 * Real.cos p.omega)
+    (by unfold a0_peak; linarith [hu])
+    (by unfold a0_peak; linarith [hu])
+    (by unfold a0_peak; nlinarith [hclt, hcgt, hu])
+    (by unfold a0_peak; nlinarith [hclt, hcgt, hu])
+  simpa only [a1_peak, a2_peak] using key
+
+/-- **Peaking stability.** Every pole of the peaking biquad lies strictly
+inside the unit disk. -/
+theorem peaking_stability (p : ValidParams) (z : ℂ)
+    (hz : z ^ 2 + (a1_peak p : ℂ) * z + (a2_peak p : ℂ) = 0) :
+    ‖z‖ < 1 := by
+  obtain ⟨h2, h1⟩ := peaking_schur p
+  exact SchurCohn.schur_cohn_degree2 (a1_peak p) (a2_peak p) h2 h1 z hz
 end BiquadStability

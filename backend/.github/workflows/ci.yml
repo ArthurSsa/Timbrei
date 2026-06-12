@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [developer]
+  push:
+    branches: [developer]
+
+jobs:
+  lake-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            -sSf | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+      - name: Lake build
+        run: lake build
+      - name: Assert no sorry in Lean sources (RNF-C1)
+        run: |
+          if grep -rn --include='*.lean' '\bsorry\b' lean/; then
+            echo "::error::found 'sorry' in Lean sources"; exit 1
+          fi
+
+  cargo-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test
+
+  cortex-m4:
+    runs-on: ubuntu-latest
+    # Embedded target must build with zero errors AND zero warnings (US-39).
+    env:
+      RUSTFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+      - run: cargo build --target thumbv7em-none-eabihf --no-default-features
+
+  python-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python eval/rbj_reference.py

@@ -36,3 +36,27 @@ Stack: React 18 + TypeScript + Vite + Tailwind CSS v4. O gráfico é renderizado
 - `src/app/components/EQPanel.tsx` — painel inferior com abas
 - `src/app/utils/filters.ts` — DSP (biquads), perfis, alvos e presets
 - `src/app/theme.ts` — tokens visuais
+- `backend/` — biblioteca **lemi** (DSP de referência, ver abaixo)
+
+## Backend (`backend/`) — biblioteca `lemi`
+
+A lógica de equalização paramétrica (coeficientes RBJ e resposta em frequência)
+tem uma implementação de **referência em Rust**, formalmente verificada em
+**Lean 4 / Mathlib**, em [`backend/`](backend/):
+
+- `backend/src/coefficients.rs` — coeficientes RBJ (peaking, low/high shelf)
+- `backend/src/frequency.rs` — resposta em frequência `H(e^{jω})`
+- `backend/src/biquad.rs` — processamento por amostra (`no_std`, embarcável em Cortex-M4)
+- `backend/lean/` — provas formais (estabilidade via Schur–Cohn, transformada bilinear)
+
+O frontend executa essa mesma matemática portada para TypeScript em
+`src/app/utils/filters.ts`. O backend serve como fonte de verdade verificada,
+alvo embarcado e base para uma futura integração via WebAssembly.
+
+```bash
+cd backend
+cargo build        # Rust (requer toolchain Rust)
+lake build         # provas Lean 4 (requer Lean/elan)
+```
+
+> Backend desenvolvido em parceria — projeto acadêmico IFCE · APS 2026.1.

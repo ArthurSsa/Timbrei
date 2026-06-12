@@ -5,3 +5,9 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# Backend Rust/Lean (lemi) — artefatos de build
+backend/target/
+backend/.lake/
+backend/lake-packages/
+backend/build/

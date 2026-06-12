@@ -7,7 +7,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "build:wasm": "wasm-pack build wasm --target web --release --out-dir ../src/app/dsp/wasm-pkg --out-name timbrei_dsp"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

@@ -11,3 +11,8 @@ backend/target/
 backend/.lake/
 backend/lake-packages/
 backend/build/
+
+# Ponte WASM — artefatos de compilação do crate (o pacote gerado em
+# src/app/dsp/wasm-pkg/ é versionado de propósito: o build do Netlify não
+# tem toolchain Rust).
+wasm/target/

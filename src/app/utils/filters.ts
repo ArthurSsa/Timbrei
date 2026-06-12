@@ -1,4 +1,4 @@
-import * as V from '../dsp/verifiedBiquad';
+import * as V from '../dsp/biquad';
 
 export const SAMPLE_RATE = 44100;
 
@@ -60,8 +60,9 @@ function clamp(v: number, lo: number, hi: number) {
 }
 
 // Coeficientes do biquad. Os tipos cobertos pelo backend `lemi` (peaking e os
-// dois shelves) usam a porta TS do DSP formalmente verificado (ver
-// ../dsp/verifiedBiquad). Os demais (lowPass/highPass/notch) seguem o RBJ padrão.
+// dois shelves) usam o DSP formalmente verificado via facade ../dsp/biquad
+// (WebAssembly quando disponível, senão a porta TS). Os demais
+// (lowPass/highPass/notch) seguem o RBJ padrão.
 // Peaking usa Q; os shelves usam a inclinação S ∈ (0,1] (o campo Q da banda é
 // reaproveitado como S e limitado a esse intervalo).
 function biquadCoeffs(type: FilterType, freq: number, gain: number, q: number) {

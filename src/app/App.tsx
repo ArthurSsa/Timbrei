@@ -161,7 +161,7 @@ export default function App() {
   ));
 
   const searchBox = (
-    <div ref={searchRef} className="relative flex-1 min-w-0 lg:flex-initial lg:w-72">
+    <div ref={searchRef} className="relative flex-1 min-w-0">
       <div
         className="flex items-center gap-1.5 px-2.5 py-1.5 cursor-text"
         style={{ background: C.surface, border: `2px solid ${showDropdown ? C.accent : C.ink}`, minWidth: 0 }}
@@ -349,11 +349,8 @@ export default function App() {
             />
           </div>
 
-          {/* Busca — ao lado direito da logo */}
+          {/* Busca — ao lado direito da logo, cresce para preencher a linha */}
           {searchBox}
-
-          {/* Espaçador (apenas desktop) empurra os controles para a direita */}
-          <div className="hidden lg:block flex-1 min-w-0" />
 
           <div className="hidden lg:flex items-center flex-shrink-0">
             <div className="flex items-center px-4">{zoomControl}</div>
@@ -373,14 +370,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* Row 2 — fones selecionados (preenchem da esquerda para a direita) */}
-        <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 pt-1 pb-2">
+        {/* Row 2 — fones selecionados + toolbar de EQ ao lado (empurrada pelos chips) */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 sm:px-4 pt-1 pb-2">
           {deviceChips}
-        </div>
-
-        {/* Row 3 — EQ action toolbar (desktop) */}
-        <div className="hidden lg:flex items-center px-3 sm:px-4 pb-2 overflow-x-auto">
-          {eqToolbar}
+          <div className="hidden lg:flex items-center">{eqToolbar}</div>
         </div>
 
         {/* MOBILE collapsible controls */}

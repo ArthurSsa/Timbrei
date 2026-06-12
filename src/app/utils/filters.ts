@@ -1,3 +1,5 @@
+import * as V from '../dsp/verifiedBiquad';
+
 export const SAMPLE_RATE = 44100;
 
 export interface FreqBand {
@@ -57,29 +59,28 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
 
+// Coeficientes do biquad. Os tipos cobertos pelo backend `lemi` (peaking e os
+// dois shelves) usam a porta TS do DSP formalmente verificado (ver
+// ../dsp/verifiedBiquad). Os demais (lowPass/highPass/notch) seguem o RBJ padrão.
+// Peaking usa Q; os shelves usam a inclinação S ∈ (0,1] (o campo Q da banda é
+// reaproveitado como S e limitado a esse intervalo).
 function biquadCoeffs(type: FilterType, freq: number, gain: number, q: number) {
-  const A = 10 ** (gain / 40);
-  const w0 = 2 * Math.PI * clamp(freq, 1, SAMPLE_RATE / 2 - 1) / SAMPLE_RATE;
-  const cw = Math.cos(w0), sw = Math.sin(w0);
-  const alpha = sw / (2 * Math.max(0.001, q));
+  const f = clamp(freq, 1, SAMPLE_RATE / 2 - 1);
 
   switch (type) {
     case 'peak':
-      return { b0: 1+alpha*A, b1: -2*cw, b2: 1-alpha*A, a0: 1+alpha/A, a1: -2*cw, a2: 1-alpha/A };
-    case 'lowShelf': {
-      const s = 2 * Math.sqrt(A) * alpha;
-      return {
-        b0: A*((A+1)-(A-1)*cw+s), b1: 2*A*((A-1)-(A+1)*cw), b2: A*((A+1)-(A-1)*cw-s),
-        a0: (A+1)+(A-1)*cw+s, a1: -2*((A-1)+(A+1)*cw), a2: (A+1)+(A-1)*cw-s,
-      };
-    }
-    case 'highShelf': {
-      const s = 2 * Math.sqrt(A) * alpha;
-      return {
-        b0: A*((A+1)+(A-1)*cw+s), b1: -2*A*((A-1)+(A+1)*cw), b2: A*((A+1)+(A-1)*cw-s),
-        a0: (A+1)-(A-1)*cw+s, a1: 2*((A-1)-(A+1)*cw), a2: (A+1)-(A-1)*cw-s,
-      };
-    }
+      return { ...V.peaking(f, SAMPLE_RATE, Math.max(0.001, q), gain), a0: 1 };
+    case 'lowShelf':
+      return { ...V.lowShelf(f, SAMPLE_RATE, clamp(q, 0.001, 1), gain), a0: 1 };
+    case 'highShelf':
+      return { ...V.highShelf(f, SAMPLE_RATE, clamp(q, 0.001, 1), gain), a0: 1 };
+  }
+
+  // Tipos não cobertos pelo backend (RBJ Cookbook padrão).
+  const w0 = 2 * Math.PI * f / SAMPLE_RATE;
+  const cw = Math.cos(w0), sw = Math.sin(w0);
+  const alpha = sw / (2 * Math.max(0.001, q));
+  switch (type) {
     case 'lowPass':
       return { b0: (1-cw)/2, b1: 1-cw, b2: (1-cw)/2, a0: 1+alpha, a1: -2*cw, a2: 1-alpha };
     case 'highPass':
@@ -87,6 +88,8 @@ function biquadCoeffs(type: FilterType, freq: number, gain: number, q: number) {
     case 'notch':
       return { b0: 1, b1: -2*cw, b2: 1, a0: 1+alpha, a1: -2*cw, a2: 1-alpha };
   }
+  // inalcançável (FilterType é exaustivo); satisfaz o verificador de tipos.
+  return { b0: 1, b1: 0, b2: 0, a0: 1, a1: 0, a2: 0 };
 }
 
 function biquadResponse(c: ReturnType<typeof biquadCoeffs>, f: number): number {

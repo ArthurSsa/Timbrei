@@ -341,7 +341,7 @@ export default function App() {
       <header className="flex-shrink-0 border-b-2" style={{ borderColor: C.ink, background: C.bg }}>
         {/* Row 1 — brand bar + controls (desktop) / menu toggle (mobile) */}
         <div className="flex items-stretch" style={{ minHeight: 52 }}>
-          <div className="flex items-center px-3 sm:px-4 border-r-2 flex-shrink-0" style={{ borderColor: C.ink }} title="Timbrei">
+          <div className="flex items-center px-3 sm:px-4 flex-shrink-0" title="Timbrei">
             <img
               src="/timbrei-logo.png"
               alt="Timbrei"
@@ -351,13 +351,13 @@ export default function App() {
 
           <div className="flex-1 min-w-0" />
 
-          <div className="hidden lg:flex items-stretch flex-shrink-0">
-            <div className="flex items-center px-4 border-l-2" style={{ borderColor: C.ink }}>{zoomControl}</div>
-            <div className="flex items-center px-4 border-l-2" style={{ borderColor: C.ink }}>{targetSelector}</div>
-            <div className="flex items-center px-4 border-l-2" style={{ borderColor: C.ink }}>{legend}</div>
+          <div className="hidden lg:flex items-center flex-shrink-0">
+            <div className="flex items-center px-4">{zoomControl}</div>
+            <div className="flex items-center px-4">{targetSelector}</div>
+            <div className="flex items-center px-4">{legend}</div>
           </div>
 
-          <div className="flex lg:hidden items-center px-3 border-l-2" style={{ borderColor: C.ink }}>
+          <div className="flex lg:hidden items-center px-3">
             <button
               onClick={() => setMenuOpen(o => !o)}
               className="flex items-center gap-1.5 px-3 py-1.5 font-bold uppercase transition-colors active:translate-y-px"
@@ -370,13 +370,13 @@ export default function App() {
         </div>
 
         {/* Row 2 — device chips + search */}
-        <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2 border-t-2" style={{ borderColor: C.ink }}>
+        <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 pb-2">
           {deviceChips}
           {searchBox}
         </div>
 
         {/* Row 3 — EQ action toolbar (desktop) */}
-        <div className="hidden lg:flex items-center px-4 py-2 border-t-2 overflow-x-auto" style={{ borderColor: C.ink, background: C.panelAlt }}>
+        <div className="hidden lg:flex items-center px-3 sm:px-4 pb-2 overflow-x-auto">
           {eqToolbar}
         </div>
 

@@ -38,9 +38,23 @@ Stack: React 18 + TypeScript + Vite + Tailwind CSS v4. O gráfico é renderizado
 - `src/app/dsp/biquad.ts` — facade de DSP (escolhe WASM ou porta TS em runtime)
 - `src/app/dsp/verifiedBiquad.ts` — porta TypeScript do DSP verificado (fallback)
 - `src/app/dsp/wasm-pkg/` — pacote WebAssembly gerado (artefato versionado)
+- `src/app/dsp/measurements.ts` — medições reais de FR (gerado, ver abaixo)
 - `src/app/theme.ts` — tokens visuais
 - `backend/` — biblioteca **lemi** (DSP de referência, ver abaixo)
 - `wasm/` — ponte WebAssembly (casca `wasm-bindgen` sobre o `lemi`)
+
+## Dados de medição
+
+As curvas dos fones/IEMs e os alvos são **medições reais** do projeto
+[AutoEq](https://github.com/jaakkopasanen/AutoEq) (fonte: **oratory1990**),
+normalizadas para 0 dB em 1 kHz. Regenere com:
+
+```bash
+node scripts/build-measurements.mjs   # baixa do AutoEq → src/app/dsp/measurements.ts
+```
+
+Fones sem medição aberta caem na aproximação paramétrica de `filters.ts`.
+Licença das medições: CC BY-NC-SA 4.0 — ver [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
 
 ## Backend (`backend/`) — biblioteca `lemi`
 

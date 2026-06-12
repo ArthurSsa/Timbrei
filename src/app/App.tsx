@@ -35,6 +35,8 @@ export default function App() {
   const [future, setFuture] = useState<EQBandDef[][]>([]);
   const [yScale, setYScale] = useState(1.0);
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
+  // Banda com zoom no eixo X (null = visão completa 20 Hz–20 kHz).
+  const [zoomBand, setZoomBand] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -93,7 +95,7 @@ export default function App() {
 
   const handleAutoEQ = (device: SelectedDevice) => {
     const tgt = target ?? TARGET_CURVES[0];
-    const bands = computeAutoEQ(device.profile.filters, tgt.filters, autoEQCounter);
+    const bands = computeAutoEQ(device.profile, tgt, autoEQCounter);
     autoEQCounter += bands.length;
     commit(bands);
     setPreamp(suggestPreamp(bands));
@@ -133,6 +135,12 @@ export default function App() {
   const headphones = filtered.filter(p => p.deviceType === 'headphone');
   const yScalePct = Math.round(yScale * 100);
   const activeBands = eqBands.filter(b => b.enabled).length;
+
+  // Faixa visível do eixo X conforme a banda com zoom (com folga para contexto).
+  const zoomBandDef = FREQ_BANDS.find(b => b.id === zoomBand);
+  const freqRange: [number, number] | null = zoomBandDef
+    ? [Math.max(20, Math.round(zoomBandDef.fLow / 1.3)), Math.min(20000, Math.round(zoomBandDef.fHigh * 1.3))]
+    : null;
 
   // ─── Reusable pieces (shared by desktop bar + mobile panel) ────────────
 
@@ -390,21 +398,35 @@ export default function App() {
       {/* ─── FREQUENCY BAND HIGHLIGHT BAR ──────────────────────────── */}
       <div className="flex-shrink-0 flex items-center border-b-2 overflow-x-auto" style={{ borderColor: C.ink, background: C.panelAlt, minHeight: 34 }}>
         <div className="flex items-center px-3 gap-1.5 flex-shrink-0">
-          <span className="uppercase font-bold flex-shrink-0" style={{ color: C.inkSoft, fontSize: 9, fontFamily: MONO, marginRight: 2, letterSpacing: '0.1em' }}>Banda</span>
+          <span className="uppercase font-bold flex-shrink-0" style={{ color: C.inkSoft, fontSize: 9, fontFamily: MONO, marginRight: 2, letterSpacing: '0.1em' }}>Zoom</span>
           {FREQ_BANDS.map(band => {
+            const isZoomed = zoomBand === band.id;
             const isHovered = hoveredBand === band.id;
+            const lit = isZoomed || isHovered;
             return (
               <button
                 key={band.id}
+                onClick={() => setZoomBand(prev => (prev === band.id ? null : band.id))}
                 onMouseEnter={() => setHoveredBand(band.id)}
                 onMouseLeave={() => setHoveredBand(null)}
-                className="px-2.5 py-1 font-semibold transition-colors flex-shrink-0"
-                style={{ background: isHovered ? band.labelColor : C.surface, border: `2px solid ${isHovered ? band.labelColor : C.ink}`, color: isHovered ? '#fff' : C.ink, fontSize: 10, whiteSpace: 'nowrap', fontFamily: MONO }}
+                title={isZoomed ? 'Remover zoom (ver tudo)' : `Zoom em ${band.name}`}
+                className="px-2.5 py-1 font-semibold transition-colors flex-shrink-0 cursor-pointer"
+                style={{ background: lit ? band.labelColor : C.surface, border: `2px solid ${lit ? band.labelColor : C.ink}`, color: lit ? '#fff' : C.ink, fontSize: 10, whiteSpace: 'nowrap', fontFamily: MONO, boxShadow: isZoomed ? `inset 0 0 0 2px ${C.surface}` : 'none' }}
               >
                 {band.name}
               </button>
             );
           })}
+          {zoomBand && (
+            <button
+              onClick={() => setZoomBand(null)}
+              title="Ver todo o espectro (20 Hz – 20 kHz)"
+              className="px-2.5 py-1 font-bold uppercase transition-colors flex-shrink-0 cursor-pointer hover:opacity-70"
+              style={{ background: C.surface, border: `2px solid ${C.ink}`, color: C.ink, fontSize: 10, whiteSpace: 'nowrap', fontFamily: MONO, letterSpacing: '0.05em' }}
+            >
+              Tudo
+            </button>
+          )}
         </div>
         <div className="flex-1" />
         <div className="hidden md:flex items-center gap-3 px-4 flex-shrink-0">
@@ -433,6 +455,7 @@ export default function App() {
             preamp={preamp}
             hoveredBand={hoveredBand}
             onBandHover={setHoveredBand}
+            freqRange={freqRange}
           />
         </div>
 

@@ -1,4 +1,5 @@
 import * as V from '../dsp/biquad';
+import { MEASUREMENTS, MEAS_FREQS } from '../dsp/measurements';
 
 export const SAMPLE_RATE = 44100;
 
@@ -126,6 +127,37 @@ export function calcEQCurve(bands: EQBandDef[], freqs: number[]): number[] {
   return freqs.map(f => coeffsList.reduce((s, c) => s + biquadResponse(c, f), 0));
 }
 
+// ── Medições reais (AutoEq / oratory1990) ──────────────────────────────────
+const MEAS_LOG0 = Math.log10(MEAS_FREQS[0]);
+const MEAS_LOG1 = Math.log10(MEAS_FREQS[MEAS_FREQS.length - 1]);
+
+// Reamostra uma curva medida (alinhada a MEAS_FREQS) para `freqs` (log-linear).
+function resampleMeasured(curve: number[], freqs: number[]): number[] {
+  const n = curve.length;
+  return freqs.map(f => {
+    const p = ((Math.log10(f) - MEAS_LOG0) / (MEAS_LOG1 - MEAS_LOG0)) * (n - 1);
+    if (p <= 0) return curve[0];
+    if (p >= n - 1) return curve[n - 1];
+    const i = Math.floor(p);
+    return curve[i] + (p - i) * (curve[i + 1] - curve[i]);
+  });
+}
+
+/** Há medição real (AutoEq) para este id de dispositivo ou alvo? */
+export const hasMeasurement = (id: string): boolean => id in MEASUREMENTS;
+
+/** Resposta de um dispositivo: medição real se existir; senão a aproximação paramétrica. */
+export function deviceResponse(profile: DeviceProfile, freqs: number[]): number[] {
+  const m = MEASUREMENTS[profile.id];
+  return m ? resampleMeasured(m, freqs) : calcProfileCurve(profile.filters, freqs);
+}
+
+/** Resposta de um alvo: medição real se existir; senão a aproximação paramétrica. */
+export function targetResponse(target: TargetProfile, freqs: number[]): number[] {
+  const m = MEASUREMENTS[target.id];
+  return m ? resampleMeasured(m, freqs) : calcProfileCurve(target.filters, freqs);
+}
+
 export function exportEqualizerAPO(bands: EQBandDef[], preamp = -6): string {
   const active = bands.filter(b => b.enabled);
   const typeMap: Record<FilterType, string> = {
@@ -206,25 +238,11 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
     { type: 'peak', freq: 9000, gain: 3.0, q: 2.8 },
     { type: 'highShelf', freq: 13000, gain: -4.5, q: 0.8 },
   ]},
-  { id: 'dunu-titan-s', name: 'Titan S', brand: 'DUNU', deviceType: 'iem', filters: [
-    { type: 'lowShelf', freq: 140, gain: 1.5, q: 0.7 },
-    { type: 'peak', freq: 3600, gain: 4.5, q: 1.4 },
-    { type: 'peak', freq: 6000, gain: -4.5, q: 2.3 },
-    { type: 'peak', freq: 9500, gain: 3.5, q: 2.5 },
-    { type: 'highShelf', freq: 14000, gain: -3.0, q: 0.8 },
-  ]},
   { id: 'er2xr', name: 'ER2XR', brand: 'Etymotic', deviceType: 'iem', filters: [
     { type: 'lowShelf', freq: 100, gain: 1.0, q: 0.7 },
     { type: 'peak', freq: 3000, gain: 3.0, q: 1.8 },
     { type: 'peak', freq: 6500, gain: -2.0, q: 2.5 },
     { type: 'highShelf', freq: 10000, gain: -4.5, q: 0.8 },
-  ]},
-  { id: 'kz-zex-pro', name: 'ZEX Pro', brand: 'KZ', deviceType: 'iem', filters: [
-    { type: 'lowShelf', freq: 200, gain: 5.5, q: 0.7 },
-    { type: 'peak', freq: 3500, gain: 4.0, q: 1.2 },
-    { type: 'peak', freq: 5800, gain: -8.0, q: 2.0 },
-    { type: 'peak', freq: 9000, gain: 2.5, q: 3.0 },
-    { type: 'highShelf', freq: 12000, gain: -7.0, q: 0.9 },
   ]},
   { id: 'hd600', name: 'HD 600', brand: 'Sennheiser', deviceType: 'headphone', filters: [
     { type: 'lowShelf', freq: 100, gain: -3.0, q: 0.7 },
@@ -397,13 +415,6 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
     { type: 'peak', freq: 9000, gain: 3.0, q: 2.8 },
     { type: 'highShelf', freq: 13000, gain: -4.5, q: 0.8 },
   ]},
-  { id: 'moondrop-kato', name: 'Kato', brand: 'Moondrop', deviceType: 'iem', filters: [
-    { type: 'lowShelf', freq: 150, gain: 2.5, q: 0.7 },
-    { type: 'peak', freq: 3800, gain: 5.0, q: 1.2 },
-    { type: 'peak', freq: 6000, gain: -4.5, q: 2.0 },
-    { type: 'peak', freq: 9500, gain: 4.0, q: 2.5 },
-    { type: 'highShelf', freq: 14000, gain: -3.5, q: 0.8 },
-  ]},
   { id: 'truthear-hexa', name: 'Hexa', brand: 'Truthear', deviceType: 'iem', filters: [
     { type: 'lowShelf', freq: 130, gain: 1.0, q: 0.7 },
     { type: 'peak', freq: 3200, gain: 4.0, q: 1.4 },
@@ -416,27 +427,6 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
     { type: 'peak', freq: 3000, gain: 4.5, q: 1.3 },
     { type: 'peak', freq: 5500, gain: -5.0, q: 2.0 },
     { type: 'peak', freq: 8500, gain: 4.0, q: 2.5 },
-    { type: 'highShelf', freq: 13000, gain: -4.0, q: 0.8 },
-  ]},
-  { id: 'simgot-ea500', name: 'EA500', brand: 'Simgot', deviceType: 'iem', filters: [
-    { type: 'lowShelf', freq: 140, gain: 2.0, q: 0.7 },
-    { type: 'peak', freq: 3500, gain: 5.5, q: 1.2 },
-    { type: 'peak', freq: 6200, gain: -4.0, q: 2.2 },
-    { type: 'peak', freq: 9000, gain: 4.5, q: 2.5 },
-    { type: 'highShelf', freq: 14000, gain: -3.0, q: 0.8 },
-  ]},
-  { id: 'tangzu-waner', name: "Wan'er S.G.", brand: 'Tangzu', deviceType: 'iem', filters: [
-    { type: 'lowShelf', freq: 150, gain: 3.0, q: 0.7 },
-    { type: 'peak', freq: 3400, gain: 4.5, q: 1.3 },
-    { type: 'peak', freq: 6000, gain: -5.0, q: 2.0 },
-    { type: 'peak', freq: 9000, gain: 2.5, q: 2.8 },
-    { type: 'highShelf', freq: 12000, gain: -5.0, q: 0.8 },
-  ]},
-  { id: 'kiwi-cadenza', name: 'Cadenza', brand: 'Kiwi Ears', deviceType: 'iem', filters: [
-    { type: 'lowShelf', freq: 150, gain: 3.0, q: 0.7 },
-    { type: 'peak', freq: 3500, gain: 4.5, q: 1.3 },
-    { type: 'peak', freq: 6000, gain: -4.0, q: 2.0 },
-    { type: 'peak', freq: 9000, gain: 3.0, q: 2.5 },
     { type: 'highShelf', freq: 13000, gain: -4.0, q: 0.8 },
   ]},
   { id: 'er4xr', name: 'ER4XR', brand: 'Etymotic', deviceType: 'iem', filters: [
@@ -463,12 +453,12 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
 ];
 
 export function computeAutoEQ(
-  deviceFilters: Array<{ type: FilterType; freq: number; gain: number; q: number }>,
-  targetFilters: Array<{ type: FilterType; freq: number; gain: number; q: number }>,
+  device: DeviceProfile,
+  target: TargetProfile,
   startId = 0
 ): EQBandDef[] {
-  const deviceCurve = calcProfileCurve(deviceFilters, LOG_FREQS);
-  const targetCurve = calcProfileCurve(targetFilters, LOG_FREQS);
+  const deviceCurve = deviceResponse(device, LOG_FREQS);
+  const targetCurve = targetResponse(target, LOG_FREQS);
   const error = LOG_FREQS.map((_, i) => targetCurve[i] - deviceCurve[i]);
 
   // Smooth with moving average in log-freq space
@@ -513,7 +503,7 @@ export const TARGET_CURVES: TargetProfile[] = [
     { type: 'peak', freq: 6000, gain: -3.5, q: 2.0 },
     { type: 'highShelf', freq: 10000, gain: -6.0, q: 0.8 },
   ]},
-  { id: 'ief-neutral', name: 'IEF Neutral 2023', filters: [
+  { id: 'ief-neutral', name: 'AutoEq in-ear', filters: [
     { type: 'lowShelf', freq: 100, gain: 1.0, q: 0.7 },
     { type: 'peak', freq: 3200, gain: 4.0, q: 1.5 },
     { type: 'peak', freq: 6500, gain: -4.0, q: 2.2 },

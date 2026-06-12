@@ -1,27 +1,46 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   EQBandDef, DeviceProfile, TargetProfile,
-  calcProfileCurve, calcEQCurve, LOG_FREQS, FREQ_BANDS,
+  deviceResponse, targetResponse, calcEQCurve, LOG_FREQS, FREQ_BANDS,
 } from '../utils/filters';
 import { C } from '../theme';
 
-const LOG_MIN = Math.log10(20);
-const LOG_MAX = Math.log10(20000);
+// Domínio total do eixo de frequência (20 Hz–20 kHz). Usado para indexar
+// LOG_FREQS, independentemente do zoom do eixo X.
+const FULL_MIN = Math.log10(20);
+const FULL_MAX = Math.log10(20000);
 const PAD = { t: 14, r: 20, b: 62, l: 52 };
 
-const FREQ_TICKS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+// Ticks rotulados (1-2-5 por década na visão completa; mais finos quando há
+// zoom numa faixa estreita) dentro de [fLo, fHi].
+function genFreqTicks(fLo: number, fHi: number): number[] {
+  const span = Math.log10(fHi / fLo);
+  const mults = span > 1.4 ? [1, 2, 5] : [1, 1.5, 2, 3, 5, 7];
+  const ticks: number[] = [];
+  const d0 = Math.floor(Math.log10(fLo)), d1 = Math.ceil(Math.log10(fHi));
+  for (let d = d0; d <= d1; d++) for (const m of mults) {
+    const f = m * 10 ** d;
+    if (f >= fLo - 1e-6 && f <= fHi + 1e-6) ticks.push(f);
+  }
+  if (ticks.length === 0) { ticks.push(fLo, fHi); }
+  return ticks;
+}
 
-const FREQ_GRID_MINOR = [
-  20, 30, 40, 50, 60, 70, 80, 90,
-  100, 200, 300, 400, 500, 600, 700, 800, 900,
-  1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000,
-  10000, 20000,
-];
+// Grade menor (1..9 por década) dentro de [fLo, fHi].
+function genFreqGrid(fLo: number, fHi: number): number[] {
+  const g: number[] = [];
+  const d0 = Math.floor(Math.log10(fLo)), d1 = Math.ceil(Math.log10(fHi));
+  for (let d = d0; d <= d1; d++) for (let m = 1; m <= 9; m++) {
+    const f = m * 10 ** d;
+    if (f >= fLo - 1e-6 && f <= fHi + 1e-6) g.push(f);
+  }
+  return g;
+}
 
-const fToX = (f: number, w: number) => (Math.log10(f) - LOG_MIN) / (LOG_MAX - LOG_MIN) * w;
+const fmtFreq = (f: number) => (f >= 1000 ? `${+(f / 1000).toFixed(1)}k` : `${Math.round(f)}`);
+
 const dbToY = (db: number, h: number, dbMin: number, dbMax: number) =>
   (1 - (db - dbMin) / (dbMax - dbMin)) * h;
-const xToF = (x: number, w: number) => 10 ** (LOG_MIN + (x / w) * (LOG_MAX - LOG_MIN));
 const yToDb = (y: number, h: number, dbMin: number, dbMax: number) =>
   dbMin + (1 - y / h) * (dbMax - dbMin);
 
@@ -47,16 +66,25 @@ interface FrequencyChartProps {
   preamp?: number;
   hoveredBand: string | null;
   onBandHover: (bandId: string | null) => void;
+  /** Faixa [fLo, fHi] visível no eixo X (zoom por banda). null = 20 Hz–20 kHz. */
+  freqRange?: [number, number] | null;
 }
 
 export function FrequencyChart({
   devices, target, eqBands, showEQ, yScale, preamp = 0,
-  hoveredBand, onBandHover,
+  hoveredBand, onBandHover, freqRange = null,
 }: FrequencyChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [cursor, setCursor] = useState<{ cx: number; cy: number } | null>(null);
+
+  // Limites visíveis do eixo X (com zoom) e mapeamentos freq⇄pixel derivados.
+  const [fLo, fHi] = freqRange && freqRange[0] < freqRange[1] ? freqRange : [20, 20000];
+  const logMin = Math.log10(fLo);
+  const logMax = Math.log10(fHi);
+  const fToX = (f: number, w: number) => (Math.log10(f) - logMin) / (logMax - logMin) * w;
+  const xToF = (x: number, w: number) => 10 ** (logMin + (x / w) * (logMax - logMin));
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -164,9 +192,9 @@ export function FrequencyChart({
     });
 
     // ── Minor frequency grid ────────────────────────────────────────
-    FREQ_GRID_MINOR.forEach(f => {
+    genFreqGrid(fLo, fHi).forEach(f => {
       const x = fToX(f, cw);
-      const isDecade = [20, 100, 1000, 10000, 20000].includes(f);
+      const isDecade = Number.isInteger(Math.log10(f));
       ctx.strokeStyle = isDecade ? '#cbbf9e' : '#ece3ca';
       ctx.lineWidth = 1;
       ctx.setLineDash([]);
@@ -202,8 +230,8 @@ export function FrequencyChart({
     }
 
     // ── Precompute curves ────────────────────────────────────────────
-    const deviceCurves = devices.map(d => calcProfileCurve(d.profile.filters, LOG_FREQS));
-    const targetCurve = target ? calcProfileCurve(target.filters, LOG_FREQS) : null;
+    const deviceCurves = devices.map(d => deviceResponse(d.profile, LOG_FREQS));
+    const targetCurve = target ? targetResponse(target, LOG_FREQS) : null;
     const hasActiveEQ = showEQ && eqBands.some(b => b.enabled);
     const eqCurve = hasActiveEQ ? calcEQCurve(eqBands, LOG_FREQS).map(v => v + preamp) : null;
 
@@ -287,7 +315,7 @@ export function FrequencyChart({
 
         const logF = Math.log10(xToF(curX, cw));
         const fi = Math.max(0, Math.min(LOG_FREQS.length - 1,
-          Math.round((logF - LOG_MIN) / (LOG_MAX - LOG_MIN) * (LOG_FREQS.length - 1))));
+          Math.round((logF - FULL_MIN) / (FULL_MAX - FULL_MIN) * (LOG_FREQS.length - 1))));
 
         devices.forEach(({ color }, di) => {
           const db = deviceCurves[di][fi];
@@ -327,6 +355,8 @@ export function FrequencyChart({
       const x1 = PAD.l + fToX(band.fLow, cw);
       const x2 = PAD.l + fToX(band.fHigh, cw);
       const cx = (x1 + x2) / 2;
+      // Não desenhar rótulos de bandas fora da faixa visível (com zoom).
+      if (cx < PAD.l - 2 || cx > PAD.l + cw + 2) return;
       const isHovered = hoveredBand === band.id;
 
       if (isHovered) {
@@ -343,8 +373,9 @@ export function FrequencyChart({
       ctx.fillText(band.short, cx, bandLabelY);
     });
 
-    // Band separator ticks
+    // Band separator ticks (apenas os visíveis na faixa atual)
     [80, 300, 2000, 8000, 12000].forEach(f => {
+      if (f < fLo || f > fHi) return;
       const x = PAD.l + fToX(f, cw);
       ctx.strokeStyle = '#cbbf9e';
       ctx.lineWidth = 1;
@@ -358,9 +389,9 @@ export function FrequencyChart({
     ctx.fillStyle = C.inkSoft;
     ctx.font = '10px ui-monospace, "Courier New", monospace';
     ctx.textAlign = 'center';
-    FREQ_TICKS.forEach(f => {
+    genFreqTicks(fLo, fHi).forEach(f => {
       const x = PAD.l + fToX(f, cw);
-      ctx.fillText(f >= 1000 ? `${f / 1000}k` : `${f}`, x, PAD.t + ch + 20);
+      ctx.fillText(fmtFreq(f), x, PAD.t + ch + 20);
     });
 
     // ── dB axis labels ───────────────────────────────────────────────
@@ -377,7 +408,7 @@ export function FrequencyChart({
     ctx.strokeStyle = C.ink;
     ctx.lineWidth = 2;
     ctx.strokeRect(PAD.l, PAD.t, cw, ch);
-  }, [devices, target, eqBands, showEQ, yScale, preamp, hoveredBand, size, cursor, cw, ch, DB_MIN, DB_MAX, DB_TICKS]);
+  }, [devices, target, eqBands, showEQ, yScale, preamp, hoveredBand, size, cursor, cw, ch, DB_MIN, DB_MAX, DB_TICKS, fLo, fHi]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -399,7 +430,7 @@ export function FrequencyChart({
       setCursor(null);
       onBandHover(null);
     }
-  }, [cw, ch, onBandHover]);
+  }, [cw, ch, onBandHover, fLo, fHi]);
 
   const hoverInfo = cursor && cw > 0 && ch > 0 ? (() => {
     const freq = xToF(cursor.cx, cw);

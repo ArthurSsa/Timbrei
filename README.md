@@ -2,6 +2,8 @@
 
 **Equalizador paramétrico visual para fones de ouvido e IEMs.**
 
+🔗 Demo ao vivo: **[timbrei.netlify.app](https://timbrei.netlify.app/)**
+
 Timbrei deixa você comparar curvas de resposta de frequência, ajustar um EQ paramétrico
 banda a banda, aplicar **Auto EQ** contra curvas-alvo (Harman, IEF, etc.), usar **presets**
 prontos e **exportar** para EqualizerAPO / Peace / Roon / Wavelet.

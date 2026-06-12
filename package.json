@@ -2,6 +2,8 @@
   "name": "timbrei",
   "private": true,
   "version": "0.1.0",
+  "description": "Equalizador paramétrico visual para fones de ouvido e IEMs.",
+  "homepage": "https://timbrei.netlify.app/",
   "type": "module",
   "scripts": {
     "build": "vite build",

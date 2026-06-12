@@ -339,9 +339,9 @@ export default function App() {
     >
       {/* ─── TOP NAVBAR ──────────────────────────────────────────────── */}
       <header className="flex-shrink-0 border-b-2" style={{ borderColor: C.ink, background: C.bg }}>
-        {/* Row 1 — brand bar + controls (desktop) / menu toggle (mobile) */}
-        <div className="flex items-stretch" style={{ minHeight: 52 }}>
-          <div className="flex items-center px-3 sm:px-4 flex-shrink-0" title="Timbrei">
+        {/* Row 1 — logo + busca + controles (desktop) / menu (mobile) */}
+        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 pt-2 lg:pt-0" style={{ minHeight: 52 }}>
+          <div className="flex items-center flex-shrink-0" title="Timbrei">
             <img
               src="/timbrei-logo.png"
               alt="Timbrei"
@@ -349,7 +349,11 @@ export default function App() {
             />
           </div>
 
-          <div className="flex-1 min-w-0" />
+          {/* Busca — ao lado direito da logo */}
+          {searchBox}
+
+          {/* Espaçador (apenas desktop) empurra os controles para a direita */}
+          <div className="hidden lg:block flex-1 min-w-0" />
 
           <div className="hidden lg:flex items-center flex-shrink-0">
             <div className="flex items-center px-4">{zoomControl}</div>
@@ -357,7 +361,7 @@ export default function App() {
             <div className="flex items-center px-4">{legend}</div>
           </div>
 
-          <div className="flex lg:hidden items-center px-3">
+          <div className="flex lg:hidden items-center flex-shrink-0">
             <button
               onClick={() => setMenuOpen(o => !o)}
               className="flex items-center gap-1.5 px-3 py-1.5 font-bold uppercase transition-colors active:translate-y-px"
@@ -369,10 +373,9 @@ export default function App() {
           </div>
         </div>
 
-        {/* Row 2 — device chips + search */}
-        <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 pb-2">
+        {/* Row 2 — fones selecionados (preenchem da esquerda para a direita) */}
+        <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 pt-1 pb-2">
           {deviceChips}
-          {searchBox}
         </div>
 
         {/* Row 3 — EQ action toolbar (desktop) */}

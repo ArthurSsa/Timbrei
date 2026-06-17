@@ -1,0 +1,7 @@
+# Configuração de build para deploy automático no Netlify (a cada push)
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"

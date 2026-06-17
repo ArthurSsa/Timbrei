@@ -1,0 +1,17 @@
+{
+  "name": "timbrei-dsp-wasm",
+  "type": "module",
+  "description": "WebAssembly bridge exposing the verified lemi DSP to the Timbrei frontend.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "timbrei_dsp_bg.wasm",
+    "timbrei_dsp.js",
+    "timbrei_dsp.d.ts"
+  ],
+  "main": "timbrei_dsp.js",
+  "types": "timbrei_dsp.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

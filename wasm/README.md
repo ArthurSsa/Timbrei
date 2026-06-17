@@ -1,7 +1,7 @@
 # timbrei-dsp-wasm: WebAssembly bridge
 
 A thin [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) shell that
-exposes the formally verified DSP of the [`lemi`](../backend) crate (RBJ
+exposes the formally verified DSP of the [`lemi`](..) crate (RBJ
 peaking, low/high shelf, and frequency response) to the Timbrei frontend,
 compiled to WebAssembly.
 

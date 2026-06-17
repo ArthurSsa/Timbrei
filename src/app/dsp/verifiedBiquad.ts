@@ -1,13 +1,13 @@
-// Faithful TypeScript port of the formally verified DSP in the lemi backend.
+// Faithful TypeScript port of the formally verified DSP in the lemi crate.
 //
 // Mirrors, character by character in evaluation order, the Rust files:
-//   backend/src/params.rs        (ValidParams: omega, a_factor)
-//   backend/src/coefficients.rs  (RBJ peaking, low_shelf, high_shelf)
-//   backend/src/frequency.rs     (complex response H(e^{jω}))
+//   src/params.rs        (ValidParams: omega, a_factor)
+//   src/coefficients.rs  (RBJ peaking, low_shelf, high_shelf)
+//   src/frequency.rs     (complex response H(e^{jω}))
 //
 // The coefficients therefore agree with the verified reference (and with the
-// RBJ Cookbook) to within a few ULP. See backend/fixtures/rbj_coefficients.json
-// and the proofs in backend/lean/{FilterParams,BiquadStability,SchurCohn}.lean.
+// RBJ Cookbook) to within a few ULP. See fixtures/rbj_coefficients.json
+// and the proofs in lean/{FilterParams,BiquadStability,SchurCohn}.lean.
 // Peaking uses the quality factor Q; the shelves use the slope S in (0, 1].
 
 /** Transfer-function coefficients, already normalized by a0 (a0 = 1).

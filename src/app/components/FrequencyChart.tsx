@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, Tags } from 'lucide-react';
 import { EQLayer, EQBandDef, calcEQCurve, LOG_FREQS, FREQ_BANDS } from '../utils/filters';
 import { C } from '../theme';
 
@@ -103,6 +103,8 @@ export function FrequencyChart({
   const [hoverHandle, setHoverHandle] = useState<string | null>(null);
   const [draggingHandle, setDraggingHandle] = useState(false);
   const dragHandleRef = useRef<{ bandId: string; moved: boolean } | null>(null);
+  // Bottom-left overlay listing the loaded device names; toggled by the Tags button.
+  const [showLegend, setShowLegend] = useState(true);
 
   // The active layer's bands are shown as draggable handles. A ref mirrors them
   // so the pointer and wheel handlers always read the current bands.
@@ -420,6 +422,51 @@ export function FrequencyChart({
       }
     }
 
+    // Device legend (bottom-left). Semi-transparent so the grid shows through,
+    // and drawn on the canvas so it is included in PNG exports. Toggled off via
+    // the Tags button.
+    if (showLegend && devices.length > 0) {
+      const pad = 8, sw = 10, gap = 7, rowH = 17, fontPx = 12;
+      ctx.save();
+      ctx.font = `600 ${fontPx}px ui-sans-serif, system-ui, sans-serif`;
+      const rows = devices.map(d => ({
+        color: d.color,
+        ready: d.status === 'ready',
+        text: `${d.brand} ${d.model}`.trim() +
+          (d.status === 'error' ? '  (failed)' : d.status === 'loading' ? '  …' : ''),
+      }));
+      let maxTextW = 0;
+      for (const r of rows) maxTextW = Math.max(maxTextW, ctx.measureText(r.text).width);
+      const boxW = pad + sw + gap + maxTextW + pad;
+      const boxH = pad * 2 + rows.length * rowH;
+      const x0 = 10;
+      const y0 = Math.max(2, ch - boxH - 10);
+
+      ctx.fillStyle = 'rgba(255, 251, 240, 0.8)';
+      ctx.strokeStyle = 'rgba(20, 20, 20, 0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.rect(x0, y0, boxW, boxH);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      rows.forEach((r, i) => {
+        const ry = y0 + pad + i * rowH + rowH / 2;
+        ctx.globalAlpha = r.ready ? 1 : 0.5;
+        ctx.fillStyle = r.color;
+        ctx.fillRect(x0 + pad, ry - sw / 2, sw, sw);
+        ctx.strokeStyle = 'rgba(20, 20, 20, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x0 + pad, ry - sw / 2, sw, sw);
+        ctx.fillStyle = C.ink;
+        ctx.fillText(r.text, x0 + pad + sw + gap, ry);
+      });
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
     ctx.restore(); // end clip
     ctx.restore(); // end translate → back to identity for absolute-coord drawing below
 
@@ -482,7 +529,7 @@ export function FrequencyChart({
     ctx.strokeStyle = C.ink;
     ctx.lineWidth = 2;
     ctx.strokeRect(PAD.l, PAD.t, cw, ch);
-  }, [devices, goalCurve, eqLayers, activeLayerId, yScale, hoveredBand, hoverHandle, size, cursor, cw, ch, DB_MIN, DB_MAX, DB_TICKS, fLo, fHi]);
+  }, [devices, goalCurve, eqLayers, activeLayerId, yScale, hoveredBand, hoverHandle, size, cursor, cw, ch, DB_MIN, DB_MAX, DB_TICKS, fLo, fHi, showLegend]);
 
   // Nearest active-layer handle to an absolute canvas point, within ~13px.
   const handleAt = (mx: number, my: number): string | null => {
@@ -676,6 +723,18 @@ export function FrequencyChart({
       >
         <Camera size={14} strokeWidth={2.5} className="group-hover:text-white" style={{ color: C.ink }} />
       </button>
+      {devices.length > 0 && (
+        <button
+          onClick={() => setShowLegend(v => !v)}
+          title={showLegend ? 'Hide device names' : 'Show device names'}
+          aria-label={showLegend ? 'Hide device names' : 'Show device names'}
+          aria-pressed={showLegend}
+          className="absolute flex items-center justify-center transition-colors"
+          style={{ top: PAD.t + 6, right: PAD.r + 6 + 34, width: 28, height: 28, background: showLegend ? C.ink : C.surface, border: `2px solid ${C.ink}`, boxShadow: C.shadowSm, cursor: 'pointer' }}
+        >
+          <Tags size={14} strokeWidth={2.5} style={{ color: showLegend ? '#ffffff' : C.ink }} />
+        </button>
+      )}
       {hoverInfo && cursor && (
         <div
           className="absolute pointer-events-none px-2.5 py-1.5 text-xs font-mono"

@@ -1,7 +1,14 @@
-# Configuração de build para deploy automático no Netlify (a cada push)
+# Netlify build and deploy config (auto-deploys on every push to main).
 [build]
   command = "npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
+
+# The /squig measurement proxy runs as a Netlify Function in production; it
+# declares its own route (config.path = "/squig/*"). See
+# netlify/functions/squig.mjs.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
